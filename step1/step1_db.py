@@ -1,5 +1,4 @@
 import json
-from typing import TypeVar
 from datetime import date
 from pathlib import Path
 import psycopg2
@@ -16,8 +15,9 @@ SELECT_ALL_COLUNM_NAMES_AND_DATATYPE = """
     WHERE table_name = %s
     ORDER BY ordinal_position;
     """
-    
-def process_postgress_db(connection, user_date: str=None):
+
+
+def process_postgress_db(connection, user_date: str = None):
     with connection as conn:
         with conn.cursor() as curr:
             tables_names = None
@@ -32,12 +32,11 @@ def process_postgress_db(connection, user_date: str=None):
                 curr.execute(SELECT_ALL_COLUNM_NAMES_AND_DATATYPE, (table,))
                 table_data["colunms_info"] = curr.fetchall()
 
-                
                 index_to_convert = list()
                 for i, colunm_info in enumerate(table_data["colunms_info"]):
                     _, colunm_datatype = colunm_info
                     if colunm_datatype in ('bytea', 'date'):
-                            index_to_convert.append([i, colunm_datatype])
+                        index_to_convert.append([i, colunm_datatype])
                     
                 curr.execute(sql.SQL("SELECT * FROM {table}").format(table=sql.Identifier(table)))
                 error_flag = False
@@ -55,9 +54,9 @@ def process_postgress_db(connection, user_date: str=None):
                             for i, datatype in index_to_convert:
                                 if row[i] is not None:
                                     if datatype == 'bytea':
-                                            row[i] = row[i].tobytes().decode('UTF-8')
+                                        row[i] = row[i].tobytes().decode('UTF-8')
                                     elif datatype == 'date':
-                                            row[i] = row[i].isoformat()
+                                        row[i] = row[i].isoformat()
                             payload.append(tuple(row))
                     
                         else:
@@ -66,15 +65,14 @@ def process_postgress_db(connection, user_date: str=None):
                         
                     except psycopg2.ProgrammingError as err:
                         error_flag = True
-                        print(f"=> error when trying to fetch from {tables_names[0]}: {err}")
+                        print(f"=> error when trying to fetch from {table}: {err}")
                 
                 if not error_flag:
                     table_data["payload"] = payload
-                    write_to_filesystem(table_data, user_date)
+                    _write_to_filesystem(table_data, user_date)
 
 
-
-def write_to_filesystem(data: dict, user_date: str):
+def _write_to_filesystem(data: dict, user_date: str):
     if user_date is not None:
         current_date = user_date
     else:
@@ -94,4 +92,4 @@ def write_to_filesystem(data: dict, user_date: str):
     
 
 if __name__ == "__main__":
-    read_postgress_db()
+    process_postgress_db()
