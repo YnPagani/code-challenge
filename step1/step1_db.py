@@ -5,15 +5,21 @@ import psycopg2
 from psycopg2 import sql
 
 SELECT_ALL_TABLE_NAMES = """
-    SELECT table_name 
-    FROM information_schema.tables 
+    SELECT table_name
+    FROM information_schema.tables
     WHERE table_schema = 'public';
     """
+
 SELECT_ALL_COLUNM_NAMES_AND_DATATYPE = """
     SELECT column_name, data_type
     FROM information_schema.columns
     WHERE table_name = %s
     ORDER BY ordinal_position;
+    """
+
+SELECT_ALL_FROM_TABLE = """
+    SELECT * 
+    FROM {table};
     """
 
 
@@ -22,13 +28,13 @@ def process_postgress_db(connection, user_date: str = None):
         with conn.cursor() as curr:
             tables_names = None
             curr.execute(SELECT_ALL_TABLE_NAMES)
-            
+
             tables_names = [table[0] for table in curr.fetchall()]
-    
+
             for table in tables_names:
                 table_data = dict()
                 table_data["table_name"] = table
-                
+
                 curr.execute(SELECT_ALL_COLUNM_NAMES_AND_DATATYPE, (table,))
                 table_data["colunms_info"] = curr.fetchall()
 
@@ -38,7 +44,7 @@ def process_postgress_db(connection, user_date: str = None):
                     if colunm_datatype in ('bytea', 'date'):
                         index_to_convert.append([i, colunm_datatype])
                     
-                curr.execute(sql.SQL("SELECT * FROM {table}").format(table=sql.Identifier(table)))
+                curr.execute(sql.SQL(SELECT_ALL_FROM_TABLE).format(table=sql.Identifier(table)))
                 error_flag = False
                 payload = list()
                 while True:
@@ -51,13 +57,14 @@ def process_postgress_db(connection, user_date: str = None):
                         if index_to_convert:
                             for row in rows:
                                 row = list(row)
-                            for i, datatype in index_to_convert:
-                                if row[i] is not None:
-                                    if datatype == 'bytea':
-                                        row[i] = row[i].tobytes().decode('UTF-8')
-                                    elif datatype == 'date':
-                                        row[i] = row[i].isoformat()
-                            payload.append(tuple(row))
+                                for i, datatype in index_to_convert:
+                                    if row[i] is not None:
+                                        if datatype == 'bytea':
+                                            row[i] = row[i].tobytes().decode('UTF-8')
+                                        elif datatype == 'date':
+                                            row[i] = row[i].isoformat()
+
+                                payload.append(tuple(row))
                     
                         else:
                             for row in rows:
@@ -83,8 +90,8 @@ def _write_to_filesystem(data: dict, user_date: str):
     path_to_store_table.mkdir(parents=True, exist_ok=True)
     
     try:
-        with open(path_to_store_table / "file.json", "w") as file:
-            json.dump(data, file, indent=4)
+        with open(path_to_store_table / "file.json", "w", encoding="utf-8") as file:
+            json.dump(data, file, ensure_ascii=False, indent=4)
     except OSError as err:
         print(f"=> Error while trying to write [{table_name}] table  to the filesystem: {err}")    
     
