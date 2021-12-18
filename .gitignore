@@ -1,6 +1,7 @@
 # Project specific
 
 dbdata/
+dbdata_sol/
 data/postgres
 data/csv
 
