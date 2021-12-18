@@ -12,3 +12,15 @@ services:
       - ./data/northwind.sql:/docker-entrypoint-initdb.d/northwind.sql
     ports:
       - 5432:5432
+
+  db_step2:
+    image: postgres:12
+    environment:
+      POSTGRES_USER: solution_user
+      POSTGRES_PASSWORD: hereitis
+      POSTGRES_DB: solution
+    volumes:
+      - ./dbdata_sol:/var/lib/postgresql/data
+      - ./data/step2.sql:/docker-entrypoint-initdb.d/step2.sql
+    ports:
+      - 5438:5432
