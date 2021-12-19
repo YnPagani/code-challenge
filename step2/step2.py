@@ -1,5 +1,4 @@
 import json
-import psycopg2
 from psycopg2 import sql
 from pathlib import Path
 
@@ -19,10 +18,11 @@ SELECT_ALL_JOIN_ORDERS_ORDER_DETAILS = """
     ON orders.order_id = order_details.order_id;
     """
 
-conn = psycopg2.connect(dbname="solution", user="solution_user", password="hereitis", port=5438)
 
-
-def process_data_to_db(user_date: str):
+def process_data_to_db(conn, user_date: str):
+    """
+    Loads data from filesystem and insert into postgres db.
+    """
     with conn:
         with conn.cursor() as curr:
             # Lists all paths related to json data files created in the first step.
@@ -30,6 +30,10 @@ def process_data_to_db(user_date: str):
             csv_paths = [csv_path for csv_path in Path("data/csv").glob(f"*/{user_date}/file.json")]
             data_paths = postgres_paths + csv_paths
 
+            # If some crash happened during steps 1.
+            if not postgres_paths or not csv_paths:
+                return False, "=> Missing files to fetch data from."
+            
             # Loads and iterate over each data file of the first step.
             for data_path in data_paths:
                 with open(data_path, "r", encoding="utf-8") as f:
@@ -61,7 +65,7 @@ def process_data_to_db(user_date: str):
                 try:
                     order_data[row[ID]]["details"].append(row[15:])
                 except KeyError:
-                    # KeyError will occur because of first occurrence of ID
+                    # KeyError will occur because of first occurrence of ID.
                     # When fetched, row is a tuple.
                     mod_row = list(row)
                     # Colunms order_data, required_date and shipped_date are fetched as datetime objs. Since json format
@@ -88,4 +92,4 @@ def process_data_to_db(user_date: str):
 
 
 if __name__ == "__main__":
-    process_data_to_db("2021-12-20")
+    pass
